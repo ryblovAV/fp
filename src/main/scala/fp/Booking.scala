@@ -82,6 +82,7 @@ object SandBox {
 
 object Functions2 {
   import Domain._
+  import Functions._
 
   val isAffordable: (Room, Price) => Boolean = (room: Room, price: Price) => room.price <= price
 
@@ -93,6 +94,24 @@ object Functions2 {
   def affordableFor2[F[_] : Apply](room: F[Room], price: F[Price]): F[Boolean] = {
     val f: F[Price => Boolean] = room.map(isAffordable.curried)
     Apply[F].ap(price)(f)
+  }
+
+  def affordableForApplicativeScalaZ[F[_] : Applicative](room: F[Room], price: Price): F[Boolean] = {
+    val f: F[Price => Boolean] = room.map(isAffordable.curried)
+    Apply[F].ap(price.point[F])(f)
+    price.point[F] <*> f
+  }
+
+  def affordableShort[F[_]: Apply](room: F[Room], price: F[Price]): F[Boolean] = {
+    Apply[F].apply2(room, price)(isAffordable)
+  }
+
+  def affordableShort2[F[_]: Applicative](room: F[Room], price: F[Price]): F[Boolean] = {
+    (room |@| price)(isAffordable)
+  }
+
+  def bestFor[F[_]: Applicative](booking: F[Booking], period: F[Period], noPlp: F[NoPpl]): F[Option[Room]] = {
+    (booking |@| period |@| noPlp)(proposeBest)
   }
  }
 

@@ -113,6 +113,23 @@ object Functions2 {
   def bestFor[F[_]: Applicative](booking: F[Booking], period: F[Period], noPlp: F[NoPpl]): F[Option[Room]] = {
     (booking |@| period |@| noPlp)(proposeBest)
   }
+
+  def bestFor2[F[_]: Bind](booking: F[Booking], fetchPeriod: Booking => F[Period], fetchNoPlp: Booking => F[NoPpl]): F[Option[Room]] = {
+    val period: F[Period] = Bind[F].bind(booking)(fetchPeriod)
+    val noPlp: F[NoPpl] = Bind[F].bind(booking)(fetchNoPlp)
+    (booking |@| period |@| noPlp)(proposeBest)
+  }
+
+  def bestFor2Short[F[_]: Bind](booking: F[Booking], fetchPeriod: Booking => F[Period], fetchNoPlp: Booking => F[NoPpl]): F[Option[Room]] = {
+    booking >>= (b => fetchPeriod(b) >>= (p => fetchNoPlp(b).map(n => proposeBest(b, p, n))))
+  }
+  def bestFor2Short2[F[_]: Bind](booking: F[Booking], fetchPeriod: Booking => F[Period], fetchNoPlp: Booking => F[NoPpl]): F[Option[Room]] = {
+    for {
+      b <- booking
+      p <- fetchPeriod(b)
+      n <- fetchNoPlp(b)
+    } yield proposeBest(b, p, n)
+  }
  }
 
 object Functions {
@@ -151,7 +168,7 @@ object Functions {
   val filterCanAccomodate: (NoPpl, List[Room]) => List[Room] = (noPpl, rooms) => rooms.filter(_.capacity >= noPpl)
   val sortByRating: List[Room] => List[Room] = (rooms: List[Room]) => rooms.sorted
 
-  val proposeBest: (Booking, Period, NoPpl) => Option[Room] = {
+  val   proposeBest: (Booking, Period, NoPpl) => Option[Room] = {
     case (Booking(rooms), period, noPlp) => {
       val pickForPeriod: List[Room] => List[Room] = pickAvaiable.curried(period)
       val filterForNoPpl: List[Room] => List[Room] = filterCanAccomodate.curried(noPlp)
